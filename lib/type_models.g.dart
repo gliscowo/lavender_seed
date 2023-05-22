@@ -12,7 +12,7 @@ BookDefinition _$BookDefinitionFromJson(Map<String, dynamic> json) =>
       json['landing_text'] as String,
       json['book_texture'] as String?,
       json['model'] as String?,
-      json['show_progress'] as bool,
+      json['show_progress'] as bool?,
       (json['macros'] as Map<String, dynamic>?)?.map(
             (k, e) => MapEntry(k, e as String),
           ) ??

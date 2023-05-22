@@ -8,7 +8,7 @@ class BookDefinition {
   final String landingText;
   final String? bookTexture;
   final String? model;
-  final bool showProgress;
+  final bool? showProgress;
   @JsonKey(defaultValue: {})
   final Map<String, String> macros;
   final String? extend;

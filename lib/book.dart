@@ -66,7 +66,7 @@ class Book {
       if (definition.bookTexture != null) "texture": definition.bookTexture,
       if (definition.extend != null) "extend": definition.extend,
       if (definition.model != null) "dynamic_book_model": definition.model,
-      if (definition.showProgress) "display_completion": true,
+      if (definition.showProgress != null) "display_completion": definition.showProgress,
     }));
 
     final converter = PatchouliToMarkdownConverter(definition.macros);
