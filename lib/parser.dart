@@ -1,29 +1,87 @@
-class _ParsingState {
-  final List<Span> spans = [];
-  bool expectsClosingParen = false;
-}
+const _defaultMacros = {
+  r"$(obf)": r"$(k)",
+  r"$(bold)": r"$(l)",
+  r"$(strike)": r"$(m)",
+  r"$(italic)": r"$(o)",
+  r"$(italics)": r"$(o)",
+  r"$(list": r"$(li",
+  r"$(reset)": r"$()",
+  r"$(clear)": r"$()",
+  r"$(2br)": r"$(br2)",
+  r"$(p)": r"$(br2)",
+  r"/$": r"$()",
+  r"<br>": r"$(br)",
+  r"$(nocolor)": r"$(0)",
+  r"$(item)": r"$(d)",
+  r"$(thing)": r"$(6)",
+};
 
-String patchouliToMarkdown(String patchouliFormatted) {
-  final output = StringBuffer();
-  final state = _ParsingState();
+class PatchouliToMarkdownConverter {
+  final Map<String, String> _macros;
 
-  final reader = StringReader(patchouliFormatted);
+  PatchouliToMarkdownConverter(Map<String, String> macros) : _macros = {..._defaultMacros, ...macros};
 
-  while (reader.hasNext) {
-    if (state.expectsClosingParen && reader.peek != ")") {
-      throw FormatException("Missing closing parenthesis of formatting code");
+  String convert(String input) {
+    final output = StringBuffer();
+    final spans = <Span>[];
+
+    for (var MapEntry(key: macro, value: expansion) in _macros.entries) {
+      input = input.replaceAll(macro, expansion);
     }
 
-    if (reader.tryConsume(r"$(")) {
-      final next = reader.peek;
-      switch (next) {
-        case "l" || "m" || "n" || "o":
-          state.spans.add(BasicFormattingSpan.ofFormattingCode(next));
+    final reader = StringReader(input);
+    while (reader.hasNext) {
+      if (reader.tryConsume(r"$()")) {
+        while (spans.isNotEmpty) {
+          output.write(spans.removeLast().end());
+        }
+      } else if (reader.tryConsume(r"$(")) {
+        final code = reader.readUntil(")");
+        if (code == null) throw ParsingError("Expected ')' or formatting code", reader);
+
+        switch (code) {
+          case "br":
+            output.write("\n\n");
+          case "br2":
+            output.write("\n\n\n");
+          case "playername":
+            output.write("{yellow}<playername here>{}");
+          case "/l":
+            final linkSpan = spans.reversed.cast<Span?>().firstWhere((e) => e is LinkSpan, orElse: () => null);
+            if (linkSpan == null) throw ParsingError("No link to terminate", reader, offset: -3);
+
+            spans.remove(linkSpan);
+            output.write(linkSpan.end());
+          default:
+            if (code.startsWith("k:")) {
+              output.write("<keybind;${code.substring(2)}>");
+            } else if (code.startsWith("li")) {
+              final indent = code.length < 3 ? 0 : int.tryParse(code.substring(2));
+              if (indent == null) throw ParsingError("Expected an integer or nothing", reader, offset: -2);
+
+              output.write("\n${"    " * (indent - 1)}- ");
+            } else if (ColorFormattingSpan.tryParse(code) case var span?) {
+              spans.add(span);
+              output.write(span.begin());
+            } else if (BasicFormattingSpan.tryParse(code) case var span?) {
+              spans.add(span);
+              output.write(span.begin());
+            } else if (LinkSpan.tryParse(code) case var span?) {
+              spans.add(span);
+              output.write(span.begin());
+            }
+        }
+      } else {
+        output.write(reader.next);
       }
     }
-  }
 
-  return output.toString();
+    while (spans.isNotEmpty) {
+      output.write(spans.removeLast().end());
+    }
+
+    return output.toString();
+  }
 }
 
 class StringReader {
@@ -42,6 +100,26 @@ class StringReader {
   String? peekOffset(int offset) {
     final charIndex = _cursor + offset;
     return charIndex >= 0 && charIndex < string.length ? string[charIndex] : null;
+  }
+
+  String? readUntil(String delimiter, [bool skipDelimiter = true]) {
+    var read = StringBuffer();
+    if (tryMatch((_) {
+      while (hasNext) {
+        if (peek == delimiter) {
+          if (skipDelimiter) next;
+          return true;
+        }
+
+        read.write(next);
+      }
+
+      return false;
+    })) {
+      return read.toString();
+    } else {
+      return null;
+    }
   }
 
   bool tryMatch(bool Function(StringReader) matcher) {
@@ -65,10 +143,26 @@ class StringReader {
   }
 }
 
-sealed class Span {
-  final StringBuffer _content = StringBuffer();
-  void append(String content) => _content.write(content);
+class ParsingError extends Error {
+  final String _message;
+  final StringReader _reader;
+  final int _offset;
 
+  ParsingError(this._message, this._reader, {int offset = 0}) : _offset = offset;
+
+  @override
+  String toString() {
+    return [
+      "ParsingError",
+      _reader.string,
+      "${" " * (_reader.cursor + _offset)}^",
+      "${" " * (_reader.cursor + _offset)}$_message",
+      "",
+    ].join("\n");
+  }
+}
+
+sealed class Span {
   String begin();
   String end();
 }
@@ -84,15 +178,18 @@ class BasicFormattingSpan extends Span {
   final String operator;
 
   BasicFormattingSpan._(this.operator);
-  factory BasicFormattingSpan.ofFormattingCode(String code) => BasicFormattingSpan._(_mappings[code] ?? "");
+  static BasicFormattingSpan? tryParse(String code) {
+    return _mappings.containsKey(code) ? BasicFormattingSpan._(_mappings[code]!) : null;
+  }
 
   @override
-  String begin() => "$operator$_content";
+  String begin() => operator;
   @override
   String end() => operator;
 }
 
 class ColorFormattingSpan extends Span {
+  static final _colorRegex = RegExp("#[0-9a-fA-F]{3,6}");
   static const _mappings = {
     "0": "black",
     "1": "dark_blue",
@@ -115,11 +212,41 @@ class ColorFormattingSpan extends Span {
   final String color;
 
   ColorFormattingSpan._(this.color);
-  factory ColorFormattingSpan.ofColorCode(String code) => ColorFormattingSpan._(_mappings[code]!);
-  factory ColorFormattingSpan.ofHexCode(String hexCode) => ColorFormattingSpan._("#$hexCode");
+  static ColorFormattingSpan? tryParse(String code) {
+    if (_mappings.containsKey(code)) return ColorFormattingSpan._(_mappings[code]!);
+
+    if (_colorRegex.hasMatch(code)) {
+      if (code.length < 7) {
+        code = "#${code[1] * 2}${code[2] * 2}${code[3] * 2}";
+      }
+
+      return ColorFormattingSpan._(code);
+    }
+
+    return null;
+  }
 
   @override
-  String begin() => "{$color}$_content";
+  String begin() => "{$color}";
   @override
   String end() => "{}";
+
+  static bool isHexCode(String code) => _colorRegex.hasMatch(code);
+}
+
+class LinkSpan extends Span {
+  final String linkTarget;
+
+  LinkSpan._(this.linkTarget);
+  static LinkSpan? tryParse(String code) {
+    if (!code.startsWith("l:")) return null;
+
+    final link = code.substring(2);
+    return LinkSpan._(link.startsWith("https://") ? link : "^$link");
+  }
+
+  @override
+  String begin() => "[";
+  @override
+  String end() => "]($linkTarget)";
 }
