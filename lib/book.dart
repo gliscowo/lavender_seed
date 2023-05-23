@@ -56,13 +56,14 @@ class Book {
     return Book._(defintion, entries, List.unmodifiable(categories));
   }
 
-  void convert(Directory outPath, String outBookName) {
+  void convert(Directory outPath, String outBookId) {
     if (!outPath.existsSync()) outPath.createSync(recursive: true);
 
+    final [bookNamespace, bookPath] = outBookId.split(":");
     final booksOutPath = p.join(outPath.path, "books");
     _writeFile(
       booksOutPath,
-      "$outBookName.json",
+      "$bookPath.json",
       _encoder.convert({
         if (definition.bookTexture != null) "texture": definition.bookTexture,
         if (definition.extend != null) "extend": definition.extend,
@@ -128,12 +129,12 @@ class Book {
           case "multiblock" || "patchouli:multiblock":
             final multiblock = Multiblock.fromJson(data["multiblock"] as Map<String, dynamic>);
             _writeFile(
-              structureOutPath,
+              p.join(structureOutPath, bookNamespace),
               "${p.basenameWithoutExtension(path)}_$idx.json",
-              _encoder.convert(multiblock.toLavenderJson()),
+              _encoder.convert(multiblock.toLavenderStructure()),
             );
 
-            content.write("<structure;${p.basenameWithoutExtension(path)}_$idx>");
+            content.write("<structure;$bookNamespace:${p.basenameWithoutExtension(path)}_$idx>");
             if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
           case var unknownType:
             unknownPageTypes.add(unknownType);

@@ -66,6 +66,8 @@ class Page {
 
 @JsonSerializable()
 class Multiblock {
+  static final _replacementPattern = RegExp(r"[_ ]");
+
   final Map<String, String> mapping;
   final List<List<String>> pattern;
 
@@ -74,5 +76,20 @@ class Multiblock {
   Map<String, dynamic> toJson() => _$MultiblockToJson(this);
   factory Multiblock.fromJson(Map<String, dynamic> json) => _$MultiblockFromJson(json);
 
-  Map<String, dynamic> toLavenderJson() => {"keys": mapping, "layers": pattern};
+  Map<String, dynamic> toLavenderStructure() {
+    final keys = {...mapping};
+    final layers = [...pattern];
+
+    if (!keys.containsKey("_") && layers.any((layer) => layer.any((row) => row.contains("_") || row.contains(" ")))) {
+      keys["_"] = "#minecraft:air";
+
+      for (var layer in layers) {
+        for (var i = 0; i < layer.length; i++) {
+          layer[i] = layer[i].replaceAllMapped(_replacementPattern, (match) => match.group(0) == "_" ? " " : "_");
+        }
+      }
+    }
+
+    return {"keys": keys, "layers": layers};
+  }
 }
