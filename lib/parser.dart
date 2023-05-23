@@ -54,7 +54,7 @@ class PatchouliToMarkdownConverter {
             output.write(linkSpan.end());
           default:
             if (code.startsWith("k:")) {
-              output.write("<keybind;${code.substring(2)}>");
+              output.write("<keybind;key.${code.substring(2)}>");
             } else if (code.startsWith("li")) {
               final indent = code.length < 3 ? 0 : int.tryParse(code.substring(2));
               if (indent == null) throw ParsingError("Expected an integer or nothing", reader, offset: -2);

@@ -84,7 +84,7 @@ class Book {
       };
 
       _writeFile(
-        categoryOutPath,
+        p.join(categoryOutPath, bookPath),
         p.setExtension(path, ".md"),
         "```json\n${_encoder.convert(frontmatter)}\n```\n\n${converter.convert(category.description)}",
       );
@@ -94,15 +94,13 @@ class Book {
     final structureOutPath = p.join(outPath.path, "structures");
 
     _writeFile(
-      entryOutPath,
+      p.join(entryOutPath, bookPath),
       "landing_page.md",
       "```json\n${_encoder.convert({"title": definition.name})}\n```\n\n${converter.convert(definition.landingText)}",
     );
 
     final unknownPageTypes = <String>{};
     for (final (:path, :entry) in entries) {
-      final associatedItems = [if (entry.extraRecipeMappings.isNotEmpty) ...entry.extraRecipeMappings.keys];
-
       final content = StringBuffer();
       for (final (idx, Page(:type, :data)) in entry.pages.indexed) {
         // TODO support titles
@@ -114,12 +112,7 @@ class Book {
             if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
           case "crafting" || "patchouli:crafting":
             content.write("<recipe;${data["recipe"]!}>\n");
-            associatedItems.add(data["recipe"]!);
-
-            if (data.containsKey("recipe2")) {
-              content.write("<recipe;${data["recipe2"]!}>\n");
-              associatedItems.add(data["recipe2"]!);
-            }
+            if (data.containsKey("recipe2")) content.write("<recipe;${data["recipe2"]!}>\n");
 
             content.write("\n");
             if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
@@ -129,7 +122,7 @@ class Book {
           case "multiblock" || "patchouli:multiblock":
             final multiblock = Multiblock.fromJson(data["multiblock"] as Map<String, dynamic>);
             _writeFile(
-              p.join(structureOutPath, bookNamespace),
+              structureOutPath,
               "${p.basenameWithoutExtension(path)}_$idx.json",
               _encoder.convert(multiblock.toLavenderStructure()),
             );
@@ -158,14 +151,14 @@ class Book {
         "category": entry.category,
         if (entry.secret) "secret": true,
         if (entry.advancement != null) "required_advancements": [entry.advancement],
-        if (associatedItems.isNotEmpty) "associated_items": associatedItems
+        if (entry.extraRecipeMappings.isNotEmpty) "associated_items": entry.extraRecipeMappings.keys.toList()
       };
 
       var renderedContent = content.toString();
       renderedContent = renderedContent.substring(0, renderedContent.length - 9);
 
       _writeFile(
-        entryOutPath,
+        p.join(entryOutPath, bookPath),
         p.setExtension(path, ".md"),
         "```json\n${_encoder.convert(frontmatter)}\n```\n\n$renderedContent",
       );

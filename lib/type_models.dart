@@ -81,8 +81,6 @@ class Multiblock {
     final layers = [...pattern];
 
     if (!keys.containsKey("_") && layers.any((layer) => layer.any((row) => row.contains("_") || row.contains(" ")))) {
-      keys["_"] = "#minecraft:air";
-
       for (var layer in layers) {
         for (var i = 0; i < layer.length; i++) {
           layer[i] = layer[i].replaceAllMapped(_replacementPattern, (match) => match.group(0) == "_" ? " " : "_");
