@@ -59,20 +59,21 @@ class Book {
   void convert(Directory outPath, String outBookName) {
     if (!outPath.existsSync()) outPath.createSync(recursive: true);
 
-    final booksOutDir = Directory(p.join(outPath.path, "books"));
-    if (!booksOutDir.existsSync()) booksOutDir.createSync(recursive: true);
-
-    File(p.join(booksOutDir.path, "$outBookName.json")).writeAsStringSync(_encoder.convert({
-      if (definition.bookTexture != null) "texture": definition.bookTexture,
-      if (definition.extend != null) "extend": definition.extend,
-      if (definition.model != null) "dynamic_book_model": definition.model,
-      if (definition.showProgress) "display_completion": true,
-    }));
+    final booksOutPath = p.join(outPath.path, "books");
+    _writeFile(
+      booksOutPath,
+      "$outBookName.json",
+      _encoder.convert({
+        if (definition.bookTexture != null) "texture": definition.bookTexture,
+        if (definition.extend != null) "extend": definition.extend,
+        if (definition.model != null) "dynamic_book_model": definition.model,
+        if (definition.showProgress) "display_completion": true,
+      }),
+    );
 
     final converter = PatchouliToMarkdownConverter(definition.macros);
 
-    final categoryOutDir = Directory(p.join(outPath.path, "categories", outBookName));
-    if (!categoryOutDir.existsSync()) categoryOutDir.createSync(recursive: true);
+    final categoryOutPath = p.join(outPath.path, "categories");
 
     for (final (:path, :category) in categories) {
       final frontmatter = {
@@ -81,17 +82,19 @@ class Book {
         if (category.secret) "secret": true,
       };
 
-      File(p.join(categoryOutDir.path, p.setExtension(path, ".md")))
-        ..createSync(recursive: true)
-        ..writeAsStringSync(
-          "```json\n${_encoder.convert(frontmatter)}\n```\n\n${converter.convert(category.description)}",
-        );
+      _writeFile(
+        categoryOutPath,
+        p.setExtension(path, ".md"),
+        "```json\n${_encoder.convert(frontmatter)}\n```\n\n${converter.convert(category.description)}",
+      );
     }
 
-    final entryOutDir = Directory(p.join(outPath.path, "entries", outBookName));
-    if (!entryOutDir.existsSync()) entryOutDir.createSync(recursive: true);
+    final entryOutPath = p.join(outPath.path, "entries");
+    final structureOutPath = p.join(outPath.path, "structures");
 
-    File(p.join(entryOutDir.path, "landing_page.md")).writeAsStringSync(
+    _writeFile(
+      entryOutPath,
+      "landing_page.md",
       "```json\n${_encoder.convert({"title": definition.name})}\n```\n\n${converter.convert(definition.landingText)}",
     );
 
@@ -100,7 +103,7 @@ class Book {
       final associatedItems = [if (entry.extraRecipeMappings.isNotEmpty) ...entry.extraRecipeMappings.keys];
 
       final content = StringBuffer();
-      for (final Page(:type, :data) in entry.pages) {
+      for (final (idx, Page(:type, :data)) in entry.pages.indexed) {
         // TODO support titles
         switch (type) {
           case "text" || "patchouli:text":
@@ -121,6 +124,16 @@ class Book {
             if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
           case "entity" || "patchouli:entity":
             content.write("<entity;${data["entity"]!}>");
+            if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
+          case "multiblock" || "patchouli:multiblock":
+            final multiblock = Multiblock.fromJson(data["multiblock"] as Map<String, dynamic>);
+            _writeFile(
+              structureOutPath,
+              "${p.basenameWithoutExtension(path)}_$idx.json",
+              _encoder.convert(multiblock.toLavenderJson()),
+            );
+
+            content.write("<structure;${p.basenameWithoutExtension(path)}_$idx>");
             if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
           case var unknownType:
             unknownPageTypes.add(unknownType);
@@ -150,9 +163,11 @@ class Book {
       var renderedContent = content.toString();
       renderedContent = renderedContent.substring(0, renderedContent.length - 9);
 
-      File(p.join(entryOutDir.path, p.setExtension(path, ".md")))
-        ..createSync(recursive: true)
-        ..writeAsStringSync("```json\n${_encoder.convert(frontmatter)}\n```\n\n$renderedContent");
+      _writeFile(
+        entryOutPath,
+        p.setExtension(path, ".md"),
+        "```json\n${_encoder.convert(frontmatter)}\n```\n\n$renderedContent",
+      );
     }
 
     if (unknownPageTypes.isNotEmpty) {
@@ -161,4 +176,8 @@ class Book {
       print("");
     }
   }
+
+  static void _writeFile(String basePath, String file, String content) => File(p.join(basePath, file))
+    ..createSync(recursive: true)
+    ..writeAsStringSync(content);
 }

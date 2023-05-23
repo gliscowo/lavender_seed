@@ -8,6 +8,7 @@ class BookDefinition {
   final String landingText;
   final String? bookTexture;
   final String? model;
+  @JsonKey(defaultValue: true)
   final bool showProgress;
   @JsonKey(defaultValue: {})
   final Map<String, String> macros;
@@ -20,7 +21,7 @@ class BookDefinition {
   factory BookDefinition.fromJson(Map<String, dynamic> json) => _$BookDefinitionFromJson(json);
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake)
+@JsonSerializable()
 class Category {
   final String name;
   final String description;
@@ -61,4 +62,17 @@ class Page {
 
   Map<String, dynamic> toJson() => data;
   factory Page.fromJson(Map<String, dynamic> json) => Page(json["type"] as String, json);
+}
+
+@JsonSerializable()
+class Multiblock {
+  final Map<String, String> mapping;
+  final List<List<String>> pattern;
+
+  Multiblock(this.mapping, this.pattern);
+
+  Map<String, dynamic> toJson() => _$MultiblockToJson(this);
+  factory Multiblock.fromJson(Map<String, dynamic> json) => _$MultiblockFromJson(json);
+
+  Map<String, dynamic> toLavenderJson() => {"keys": mapping, "layers": pattern};
 }

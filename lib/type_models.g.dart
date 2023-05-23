@@ -12,7 +12,7 @@ BookDefinition _$BookDefinitionFromJson(Map<String, dynamic> json) =>
       json['landing_text'] as String,
       json['book_texture'] as String?,
       json['model'] as String?,
-      json['show_progress'] as bool,
+      json['show_progress'] as bool? ?? true,
       (json['macros'] as Map<String, dynamic>?)?.map(
             (k, e) => MapEntry(k, e as String),
           ) ??
@@ -70,4 +70,17 @@ Map<String, dynamic> _$EntryToJson(Entry instance) => <String, dynamic>{
       'advancement': instance.advancement,
       'secret': instance.secret,
       'extra_recipe_mappings': instance.extraRecipeMappings,
+    };
+
+Multiblock _$MultiblockFromJson(Map<String, dynamic> json) => Multiblock(
+      Map<String, String>.from(json['mapping'] as Map),
+      (json['pattern'] as List<dynamic>)
+          .map((e) => (e as List<dynamic>).map((e) => e as String).toList())
+          .toList(),
+    );
+
+Map<String, dynamic> _$MultiblockToJson(Multiblock instance) =>
+    <String, dynamic>{
+      'mapping': instance.mapping,
+      'pattern': instance.pattern,
     };
