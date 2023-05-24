@@ -56,7 +56,7 @@ class Book {
     return Book._(defintion, entries, List.unmodifiable(categories));
   }
 
-  void convert(Directory outPath, String outBookId) {
+  void convert(Directory outPath, String outBookId, {Map<String, dynamic> customPageMappings = const {}}) {
     if (!outPath.existsSync()) outPath.createSync(recursive: true);
 
     final [bookNamespace, bookPath] = outBookId.split(":");
@@ -103,45 +103,66 @@ class Book {
     for (final (:path, :entry) in entries) {
       final content = StringBuffer();
       for (final (idx, Page(:type, :data)) in entry.pages.indexed) {
-        // TODO support titles
-        switch (type) {
-          case "text" || "patchouli:text":
-            content.write(converter.convert(data["text"]!));
-          case "image" || "patchouli:image":
-            content.write("![](${(data["images"]! as List<dynamic>).first})\n\n");
-            if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
-          case "crafting" || "patchouli:crafting":
-            content.write("<recipe;${data["recipe"]!}>\n");
-            if (data.containsKey("recipe2")) content.write("<recipe;${data["recipe2"]!}>\n");
+        if (customPageMappings[type] case var mapping?) {
+          final paramPattern = RegExp(r"\{\{[-_a-zA-Z\d]+}}");
+          String map(Match match) {
+            final paramName = match.group(0)!.substring(2, match.group(0)!.length - 2);
+            if (!data.containsKey(paramName)) throw ArgumentError.value(paramName, "page mapping parameter");
 
-            content.write("\n");
-            if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
-          case "entity" || "patchouli:entity":
-            content.write("<entity;${data["entity"]!}>");
-            if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
-          case "multiblock" || "patchouli:multiblock":
-            final multiblock = Multiblock.fromJson(data["multiblock"] as Map<String, dynamic>);
-            _writeFile(
-              structureOutPath,
-              "${p.basenameWithoutExtension(path)}_$idx.json",
-              _encoder.convert(multiblock.toLavenderStructure()),
-            );
+            return data[paramName]!;
+          }
 
-            content.write("<structure;$bookNamespace:${p.basenameWithoutExtension(path)}_$idx>");
-            if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
-          case var unknownType:
-            unknownPageTypes.add(unknownType);
+          if (mapping case String mapping) {
+            content.write("${mapping.replaceAllMapped(paramPattern, map)}\n\n");
+          } else if (mapping case List<dynamic> mappings) {
+            for (var (idx, mapping) in mappings.cast<String>().indexed) {
+              try {
+                content.writeln(mapping.replaceAllMapped(paramPattern, map));
+              } catch (_) {
+                if (idx > 0) continue;
+                rethrow;
+              }
+            }
 
-            final text = data.remove("text") as String?;
-            final header = "---< Unknown page type '$unknownType' >---";
+            content.writeln();
+          } else {
+            unknownPageTypes.add(type);
+          }
+        } else {
+          switch (type) {
+            case "text" || "patchouli:text":
+              {}
+            case "image" || "patchouli:image":
+              content.write("![](${(data["images"]! as List<dynamic>).first})\n\n");
+            case "crafting" || "patchouli:crafting":
+              content.writeln("<recipe;${data["recipe"]!}>");
+              if (data.containsKey("recipe2")) content.writeln("<recipe;${data["recipe2"]!}>");
 
-            content.writeln(header);
-            content.writeln(_encoder.convert(data));
-            content.write("---< ${"=" * (header.length - 10)} >---\n\n");
+              content.write("\n");
+            case "entity" || "patchouli:entity":
+              content.write("<entity;${data["entity"]!}>");
+            case "multiblock" || "patchouli:multiblock":
+              final multiblock = Multiblock.fromJson(data["multiblock"] as Map<String, dynamic>);
+              _writeFile(
+                structureOutPath,
+                "${p.basenameWithoutExtension(path)}_$idx.json",
+                _encoder.convert(multiblock.toLavenderStructure()),
+              );
 
-            if (text != null) content.write(converter.convert(text));
+              content.write("<structure;$bookNamespace:${p.basenameWithoutExtension(path)}_$idx>");
+            case var unmappedType:
+              unknownPageTypes.add(unmappedType);
+
+              final header = "---< Unmapped page type '$unmappedType' >---";
+
+              content.writeln(header);
+              content.writeln(_encoder.convert({...data}..remove("text")));
+              content.write("---< ${"=" * (header.length - 10)} >---\n\n");
+          }
         }
 
+        // TODO support titles
+        if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
         content.write("\n\n;;;;;\n\n");
       }
 
