@@ -101,7 +101,8 @@ class Book {
 
     final unknownPageTypes = <String>{};
     for (final (:path, :entry) in entries) {
-      final content = StringBuffer();
+      final pageContent = StringBuffer();
+
       for (final (idx, Page(:type, :data)) in entry.pages.indexed) {
         if (customPageMappings[type] case var mapping?) {
           final paramPattern = RegExp(r"\{\{[-_a-zA-Z\d]+}}");
@@ -113,70 +114,73 @@ class Book {
           }
 
           if (mapping case String mapping) {
-            content.write("${mapping.replaceAllMapped(paramPattern, map)}\n\n");
+            pageContent.write("${mapping.replaceAllMapped(paramPattern, map)}\n\n");
           } else if (mapping case List<dynamic> mappings) {
             for (var (idx, mapping) in mappings.cast<String>().indexed) {
               try {
-                content.writeln(mapping.replaceAllMapped(paramPattern, map));
+                pageContent.writeln(mapping.replaceAllMapped(paramPattern, map));
               } catch (_) {
                 if (idx > 0) continue;
                 rethrow;
               }
             }
 
-            content.writeln();
+            pageContent.writeln();
           } else {
             unknownPageTypes.add(type);
           }
         } else {
-          switch (type) {
-            case "crafting" ||
-                  "patchouli:crafting" ||
-                  "smelting" ||
-                  "patchouli:smelting" ||
-                  "campfire" ||
-                  "patchouli:campfire" ||
-                  "smithing" ||
-                  "patchouli:smithing" ||
-                  "blasting" ||
-                  "patchouli:blasting" ||
-                  "smoking" ||
-                  "patchouli:smoking" ||
-                  "stonecutting" ||
-                  "patchouli:stonecutting":
-              content.writeln("<recipe;${data["recipe"]!}>");
-              if (data.containsKey("recipe2")) content.writeln("<recipe;${data["recipe2"]!}>");
+          try {
+            switch (type) {
+              case "text" || "patchouli:text":
+                {}
+              case "crafting" ||
+                    "patchouli:crafting" ||
+                    "smelting" ||
+                    "patchouli:smelting" ||
+                    "campfire" ||
+                    "patchouli:campfire" ||
+                    "smithing" ||
+                    "patchouli:smithing" ||
+                    "blasting" ||
+                    "patchouli:blasting" ||
+                    "smoking" ||
+                    "patchouli:smoking" ||
+                    "stonecutting" ||
+                    "patchouli:stonecutting":
+                pageContent.writeln("<recipe;${data["recipe"]!}>");
+                if (data.containsKey("recipe2")) pageContent.writeln("<recipe;${data["recipe2"]!}>");
 
-              content.write("\n");
-            case "text" || "patchouli:text":
-              {}
-            case "image" || "patchouli:image":
-              content.write("![](${(data["images"]! as List<dynamic>).first},fit)\n\n");
-            case "entity" || "patchouli:entity":
-              content.write("<entity;${data["entity"]!}>");
-            case "multiblock" || "patchouli:multiblock":
-              final multiblock = Multiblock.fromJson(data["multiblock"] as Map<String, dynamic>);
-              _writeFile(
-                structureOutPath,
-                "${p.basenameWithoutExtension(path)}_$idx.json",
-                _encoder.convert(multiblock.toLavenderStructure()),
-              );
+                pageContent.write("\n");
+              case "image" || "patchouli:image":
+                pageContent.write("![](${(data["images"]! as List<dynamic>).first},fit)\n\n");
+              case "entity" || "patchouli:entity":
+                pageContent.writeln("<entity;${data["entity"]!}>");
+              case "multiblock" || "patchouli:multiblock":
+                if (data.containsKey("multiblock")) {
+                  final multiblock = Multiblock.fromJson(data["multiblock"] as Map<String, dynamic>);
+                  _writeFile(
+                    structureOutPath,
+                    "${p.basenameWithoutExtension(path)}_$idx.json",
+                    _encoder.convert(multiblock.toLavenderStructure()),
+                  );
 
-              content.write("<structure;$bookNamespace:${p.basenameWithoutExtension(path)}_$idx>");
-            case var unmappedType:
-              unknownPageTypes.add(unmappedType);
-
-              final header = "---< Unmapped page type '$unmappedType' >---";
-
-              content.writeln(header);
-              content.writeln(_encoder.convert({...data}..remove("text")));
-              content.write("---< ${"=" * (header.length - 10)} >---\n\n");
+                  pageContent.writeln("<structure;$bookNamespace:${p.basenameWithoutExtension(path)}_$idx>");
+                } else if (data.containsKey("multiblock_id")) {
+                  pageContent.writeln("<structure;${data["multiblock_id"]}>");
+                }
+              case var unmappedType:
+                unknownPageTypes.add(unmappedType);
+                _writeRawPageData("Unmapped page type '$unmappedType'", pageContent, data);
+            }
+          } catch (_) {
+            _writeRawPageData("Broken page", pageContent, data);
           }
         }
 
         // TODO support titles
-        if (data.containsKey("text")) content.write(converter.convert(data["text"]!));
-        content.write("\n\n;;;;;\n\n");
+        if (data.containsKey("text")) pageContent.write(converter.convert(data["text"]!));
+        pageContent.write("\n\n;;;;;\n\n");
       }
 
       final frontmatter = {
@@ -188,7 +192,7 @@ class Book {
         if (entry.extraRecipeMappings.isNotEmpty) "associated_items": entry.extraRecipeMappings.keys.toList()
       };
 
-      var renderedContent = content.toString();
+      var renderedContent = pageContent.toString();
       renderedContent = renderedContent.substring(0, renderedContent.length - 9);
 
       _writeFile(
@@ -203,6 +207,14 @@ class Book {
       print(unknownPageTypes.map((e) => " - $e").join("\n"));
       print("");
     }
+  }
+
+  static void _writeRawPageData(String message, StringBuffer target, Map<String, dynamic> data) {
+    final header = "---< $message >---";
+
+    target.writeln(header);
+    target.writeln(_encoder.convert({...data}..remove("text")));
+    target.write("---< ${"=" * (header.length - 10)} >---\n\n");
   }
 
   static void _writeFile(String basePath, String file, String content) => File(p.join(basePath, file))

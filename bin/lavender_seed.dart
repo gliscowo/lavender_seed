@@ -39,6 +39,6 @@ void main(List<String> args) async {
     book.convert(Directory(outPath), outBookId, customPageMappings: customMappings);
     print("Converted successfully in ${(stopwatch.elapsedMicroseconds / 1000).toStringAsFixed(3)}ms");
   } else {
-    print("Usage: ${Platform.executable} <path/to/book.json> <output/path> <output:book_identifier>");
+    print("Usage: ${Platform.executable} <path/to/book.json> <output/path> <output_book:identifier>");
   }
 }
