@@ -130,15 +130,28 @@ class Book {
           }
         } else {
           switch (type) {
-            case "text" || "patchouli:text":
-              {}
-            case "image" || "patchouli:image":
-              content.write("![](${(data["images"]! as List<dynamic>).first})\n\n");
-            case "crafting" || "patchouli:crafting":
+            case "crafting" ||
+                  "patchouli:crafting" ||
+                  "smelting" ||
+                  "patchouli:smelting" ||
+                  "campfire" ||
+                  "patchouli:campfire" ||
+                  "smithing" ||
+                  "patchouli:smithing" ||
+                  "blasting" ||
+                  "patchouli:blasting" ||
+                  "smoking" ||
+                  "patchouli:smoking" ||
+                  "stonecutting" ||
+                  "patchouli:stonecutting":
               content.writeln("<recipe;${data["recipe"]!}>");
               if (data.containsKey("recipe2")) content.writeln("<recipe;${data["recipe2"]!}>");
 
               content.write("\n");
+            case "text" || "patchouli:text":
+              {}
+            case "image" || "patchouli:image":
+              content.write("![](${(data["images"]! as List<dynamic>).first},fit)\n\n");
             case "entity" || "patchouli:entity":
               content.write("<entity;${data["entity"]!}>");
             case "multiblock" || "patchouli:multiblock":
