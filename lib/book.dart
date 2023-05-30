@@ -5,7 +5,7 @@ import 'package:lavender_seed/parser.dart';
 import 'package:lavender_seed/type_models.dart';
 import 'package:path/path.dart' as p;
 
-const JsonEncoder _encoder = JsonEncoder.withIndent("    ");
+const JsonEncoder _encoder = JsonEncoder.withIndent("  ");
 
 class Book {
   final BookDefinition definition;
@@ -13,13 +13,13 @@ class Book {
   final List<({String path, Category category})> categories;
 
   Book._(this.definition, this.entries, this.categories);
-  static Future<Book> load(File bookJson) async {
+  static Future<Book> load(File bookJson, String language) async {
     if (!bookJson.existsSync()) throw FileSystemException("Given book.json file does not exist", bookJson.path);
     final defintion = BookDefinition.fromJson(jsonDecode(bookJson.readAsStringSync()));
 
-    final contentBaseDir = Directory(p.join(bookJson.parent.path, "en_us"));
+    final contentBaseDir = Directory(p.join(bookJson.parent.path, language));
     if (!contentBaseDir.existsSync()) {
-      throw FileSystemException("en_us content directory was not found", contentBaseDir.path);
+      throw FileSystemException("$language content directory was not found", contentBaseDir.path);
     }
 
     final categories = <({String path, Category category})>[];
