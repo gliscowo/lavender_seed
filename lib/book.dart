@@ -86,7 +86,7 @@ class Book {
       _writeFile(
         p.join(categoryOutPath, bookPath),
         p.setExtension(path, ".md"),
-        "```json\n${_encoder.convert(frontmatter)}\n```\n\n${converter.convert(category.description)}",
+        "```json\n${_encoder.convert(frontmatter)}\n```\n\n${converter.convert(category.description, bookNamespace)}",
       );
     }
 
@@ -96,12 +96,15 @@ class Book {
     _writeFile(
       p.join(entryOutPath, bookPath),
       "landing_page.md",
-      "```json\n${_encoder.convert({"title": definition.name})}\n```\n\n${converter.convert(definition.landingText)}",
+      "```json\n${_encoder.convert({
+            "title": definition.name
+          })}\n```\n\n${converter.convert(definition.landingText, bookNamespace)}",
     );
 
     final unknownPageTypes = <String>{};
     for (final (:path, :entry) in entries) {
-      final pageContent = StringBuffer();
+      final entryContent = StringBuffer();
+      final associatedItems = entry.extraRecipeMappings.keys.toList();
 
       for (final (idx, Page(:type, :data)) in entry.pages.indexed) {
         if (customPageMappings[type] case var mapping?) {
@@ -114,18 +117,18 @@ class Book {
           }
 
           if (mapping case String mapping) {
-            pageContent.write("${mapping.replaceAllMapped(paramPattern, map)}\n\n");
+            entryContent.write("${mapping.replaceAllMapped(paramPattern, map)}\n\n");
           } else if (mapping case List<dynamic> mappings) {
             for (var (idx, mapping) in mappings.cast<String>().indexed) {
               try {
-                pageContent.writeln(mapping.replaceAllMapped(paramPattern, map));
+                entryContent.writeln(mapping.replaceAllMapped(paramPattern, map));
               } catch (_) {
                 if (idx > 0) continue;
                 rethrow;
               }
             }
 
-            pageContent.writeln();
+            entryContent.writeln();
           } else {
             unknownPageTypes.add(type);
           }
@@ -148,14 +151,18 @@ class Book {
                     "patchouli:smoking" ||
                     "stonecutting" ||
                     "patchouli:stonecutting":
-                pageContent.writeln("<recipe;${data["recipe"]!}>");
-                if (data.containsKey("recipe2")) pageContent.writeln("<recipe;${data["recipe2"]!}>");
+                entryContent.writeln("<recipe;${data["recipe"]!}>");
+                if (data.containsKey("recipe2")) entryContent.writeln("<recipe;${data["recipe2"]!}>");
 
-                pageContent.write("\n");
+                entryContent.write("\n");
               case "image" || "patchouli:image":
-                pageContent.write("![](${(data["images"]! as List<dynamic>).first},fit)\n\n");
+                entryContent.write("![](${(data["images"]! as List<dynamic>).first},fit)\n\n");
+              case "spotlight" || "patchouli:spotlight":
+                entryContent.writeln(
+                    "<|item-spotlight@lavender:book_components|item=${_escapeItemStackString(data["item"])}|>");
+                if (data["link_recipe"] == true) associatedItems.add(_stripNbt(data["item"]));
               case "entity" || "patchouli:entity":
-                pageContent.writeln("<entity;${data["entity"]!}>");
+                entryContent.writeln("<entity;${data["entity"]!}>");
               case "multiblock" || "patchouli:multiblock":
                 if (data.containsKey("multiblock")) {
                   final multiblock = Multiblock.fromJson(data["multiblock"] as Map<String, dynamic>);
@@ -165,22 +172,26 @@ class Book {
                     _encoder.convert(multiblock.toLavenderStructure()),
                   );
 
-                  pageContent.writeln("<structure;$bookNamespace:${p.basenameWithoutExtension(path)}_$idx>");
+                  entryContent.writeln("<structure;$bookNamespace:${p.basenameWithoutExtension(path)}_$idx>");
                 } else if (data.containsKey("multiblock_id")) {
-                  pageContent.writeln("<structure;${data["multiblock_id"]}>");
+                  entryContent.writeln("<structure;${data["multiblock_id"]}>");
                 }
               case var unmappedType:
                 unknownPageTypes.add(unmappedType);
-                _writeRawPageData("Unmapped page type '$unmappedType'", pageContent, data);
+                _writeRawPageData("Unmapped page type '$unmappedType'", entryContent, data);
             }
           } catch (_) {
-            _writeRawPageData("Broken page", pageContent, data);
+            _writeRawPageData("Broken page", entryContent, data);
           }
         }
 
-        // TODO support titles
-        if (data.containsKey("text")) pageContent.write(converter.convert(data["text"]!));
-        pageContent.write("\n\n;;;;;\n\n");
+        if (data.containsKey("title")) {
+          entryContent.writeln("<|page-title@lavender:book_components|title=${data["title"]}|>");
+          print("processed title in ${entry.name}");
+        }
+
+        if (data.containsKey("text")) entryContent.write(converter.convert(data["text"]!, bookNamespace));
+        entryContent.write("\n\n;;;;;\n\n");
       }
 
       final frontmatter = {
@@ -189,10 +200,10 @@ class Book {
         "category": entry.category,
         if (entry.secret) "secret": true,
         if (entry.advancement != null) "required_advancements": [entry.advancement],
-        if (entry.extraRecipeMappings.isNotEmpty) "associated_items": entry.extraRecipeMappings.keys.toList()
+        if (entry.extraRecipeMappings.isNotEmpty) "associated_items": associatedItems
       };
 
-      var renderedContent = pageContent.toString();
+      var renderedContent = entryContent.toString();
       renderedContent = renderedContent.substring(0, renderedContent.length - 9);
 
       _writeFile(
@@ -207,6 +218,23 @@ class Book {
       print(unknownPageTypes.map((e) => " - $e").join("\n"));
       print("");
     }
+  }
+
+  static String _stripNbt(String itemStackString) {
+    final nbtIndex = itemStackString.indexOf("{");
+    if (nbtIndex != -1) itemStackString = itemStackString.substring(0, nbtIndex);
+
+    return itemStackString;
+  }
+
+  static String _escapeItemStackString(String itemStackString) {
+    final resultBuffer = StringBuffer();
+    for (var i = 0; i < itemStackString.length; i++) {
+      final char = itemStackString[i];
+      resultBuffer.write(char == "," ? r"\," : char);
+    }
+
+    return resultBuffer.toString();
   }
 
   static void _writeRawPageData(String message, StringBuffer target, Map<String, dynamic> data) {

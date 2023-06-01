@@ -21,7 +21,7 @@ class PatchouliToMarkdownConverter {
 
   PatchouliToMarkdownConverter(Map<String, String> macros) : _macros = {..._defaultMacros, ...macros};
 
-  String convert(String input) {
+  String convert(String input, String namespace) {
     final output = StringBuffer();
     final spans = <Span>[];
 
@@ -66,7 +66,7 @@ class PatchouliToMarkdownConverter {
             } else if (BasicFormattingSpan.tryParse(code) case var span?) {
               spans.add(span);
               output.write(span.begin());
-            } else if (LinkSpan.tryParse(code) case var span?) {
+            } else if (LinkSpan.tryParse(code, namespace) case var span?) {
               spans.add(span);
               output.write(span.begin());
             }
@@ -238,11 +238,16 @@ class LinkSpan extends Span {
   final String linkTarget;
 
   LinkSpan._(this.linkTarget);
-  static LinkSpan? tryParse(String code) {
+  static LinkSpan? tryParse(String code, String namespace) {
     if (!code.startsWith("l:")) return null;
 
     final link = code.substring(2);
-    return LinkSpan._(link.startsWith("https://") ? link : "^$link");
+    return LinkSpan._(link.startsWith("https://") ? link : "^${_canonicalizeLink(namespace, link)}");
+  }
+
+  static String _canonicalizeLink(String namespace, String link) {
+    if (link.contains(":")) return link;
+    return "$namespace:$link";
   }
 
   @override
