@@ -1,12 +1,13 @@
 import 'dart:convert';
 import "dart:io";
 
-import 'package:lavender_seed/parser.dart';
+import 'package:lavender_seed/converter.dart';
 import 'package:lavender_seed/type_models.dart';
 import 'package:path/path.dart' as p;
 
 const JsonEncoder _encoder = JsonEncoder.withIndent("  ");
 
+/// A Patchouli book with its 'book.json' metadata, entries and categories
 class Book {
   final BookDefinition definition;
   final List<({String path, Entry entry})> entries;
@@ -19,7 +20,7 @@ class Book {
 
     final contentBaseDir = Directory(p.join(bookJson.parent.path, language));
     if (!contentBaseDir.existsSync()) {
-      throw FileSystemException("$language content directory was not found", contentBaseDir.path);
+      throw FileSystemException("Content directory of language '$language' was not found", contentBaseDir.path);
     }
 
     final categories = <({String path, Category category})>[];
@@ -56,6 +57,11 @@ class Book {
     return Book._(defintion, entries, List.unmodifiable(categories));
   }
 
+  /// Convert this book to Lavender-formatted Markdown and create the required file
+  /// structure in [outPath], using [outBookId] as the book's ID.
+  ///
+  /// If the book contains non-standard page types, [customPageMappings] may be supplied
+  /// with templates for converting the unknown data format to Markdown
   void convert(Directory outPath, String outBookId, {Map<String, dynamic> customPageMappings = const {}}) {
     if (!outPath.existsSync()) outPath.createSync(recursive: true);
 
@@ -187,7 +193,6 @@ class Book {
 
         if (data.containsKey("title")) {
           entryContent.writeln("<|page-title@lavender:book_components|title=${data["title"]}|>");
-          print("processed title in ${entry.name}");
         }
 
         if (data.containsKey("text")) entryContent.write(converter.convert(data["text"]!, bookNamespace));

@@ -1,3 +1,5 @@
+/// Patchouli's built-in list of macros, this is combined with any book-specific
+/// macros to form the final macro set used during conversion
 const _defaultMacros = {
   r"$(obf)": r"$(k)",
   r"$(bold)": r"$(l)",
@@ -16,11 +18,15 @@ const _defaultMacros = {
   r"$(thing)": r"$(6)",
 };
 
+/// Parser and Markdown-generator implemenattion used for converting
+/// each individual page of the supplied Patchouli book
 class PatchouliToMarkdownConverter {
   final Map<String, String> _macros;
 
   PatchouliToMarkdownConverter(Map<String, String> macros) : _macros = {..._defaultMacros, ...macros};
 
+  /// Convert Patchouli-formatted [input] into Markdown-formatted
+  /// output, assuming all namespace-less links point into [namespace]
   String convert(String input, String namespace) {
     final output = StringBuffer();
     final spans = <Span>[];
@@ -133,9 +139,9 @@ class StringReader {
   }
 
   bool tryConsume(String toConsume) {
-    return tryMatch((reader) {
+    return tryMatch((_) {
       for (var codeUnit in toConsume.codeUnits) {
-        if (reader.next != String.fromCharCode(codeUnit)) return false;
+        if (next != String.fromCharCode(codeUnit)) return false;
       }
 
       return true;
@@ -143,6 +149,8 @@ class StringReader {
   }
 }
 
+/// Error implementation with sufficient context to pretty-print
+/// the error including its precise location for the user
 class ParsingError extends Error {
   final String _message;
   final StringReader _reader;
@@ -206,7 +214,7 @@ class ColorFormattingSpan extends Span {
     "c": "red",
     "d": "light_purple",
     "e": "yellow",
-    "f": "white",
+    "f": "white"
   };
 
   final String color;
@@ -230,8 +238,6 @@ class ColorFormattingSpan extends Span {
   String begin() => "{$color}";
   @override
   String end() => "{}";
-
-  static bool isHexCode(String code) => _colorRegex.hasMatch(code);
 }
 
 class LinkSpan extends Span {
