@@ -20,11 +20,11 @@ jobs:
 
 
       - name: Compile windows binary
-        run: dart compile exe bin/lavender_seed.dart -o lavender_seed.exe
+        run: dart compile exe bin/lavender_seed.dart -o lavender-seed.exe
         if: matrix.os == 'windows-latest'
 
       - name: Compile binary
-        run: dart compile exe bin/lavender_seed.dart -o lavender_seed
+        run: dart compile exe bin/lavender_seed.dart -o lavender-seed -S /dev/null
         if: matrix.os != 'windows-latest'
 
 
@@ -33,12 +33,12 @@ jobs:
         if: matrix.os == 'windows-latest'
         with:
             name: artifacts-${{ matrix.os }}
-            path: lavender_seed.exe
+            path: lavender-seed.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3.0.0
         if: matrix.os != 'windows-latest'
         with:
             name: artifacts-${{ matrix.os }}
-            path: lavender_seed
+            path: lavender-seed
 
