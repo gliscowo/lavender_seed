@@ -1,6 +1,6 @@
 name: lavender_seed
-description: A sample command-line application.
-version: 0.1.0
+description: A CLI utility for converting Patchouli books to Lavender's file structure and Markdown format
+version: 0.1.1
 repository: https://github.com/gliscowo/lavender_seed
 
 environment:

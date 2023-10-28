@@ -18,7 +18,7 @@ const _defaultMacros = {
   r"$(thing)": r"$(6)",
 };
 
-/// Parser and Markdown-generator implemenattion used for converting
+/// Parser and Markdown-generator implemenation used for converting
 /// each individual page of the supplied Patchouli book
 class PatchouliToMarkdownConverter {
   final Map<String, String> _macros;

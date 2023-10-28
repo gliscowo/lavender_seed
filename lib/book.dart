@@ -166,7 +166,7 @@ class Book {
               case "spotlight" || "patchouli:spotlight":
                 entryContent.writeln(
                     "<|item-spotlight@lavender:book_components|item=${_escapeItemStackString(data["item"])}|>");
-                if (data["link_recipe"] == true) associatedItems.add(_stripNbt(data["item"]));
+                if (data["link_recipe"] == true) associatedItems.add(data["item"]);
               case "entity" || "patchouli:entity":
                 entryContent.writeln("<entity;${data["entity"]!}>");
               case "multiblock" || "patchouli:multiblock":
@@ -223,13 +223,6 @@ class Book {
       print(unknownPageTypes.map((e) => " - $e").join("\n"));
       print("");
     }
-  }
-
-  static String _stripNbt(String itemStackString) {
-    final nbtIndex = itemStackString.indexOf("{");
-    if (nbtIndex != -1) itemStackString = itemStackString.substring(0, nbtIndex);
-
-    return itemStackString;
   }
 
   static String _escapeItemStackString(String itemStackString) {
