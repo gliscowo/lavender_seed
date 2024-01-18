@@ -8,14 +8,16 @@ class BookDefinition {
   final String landingText;
   final String? bookTexture;
   final String? model;
+  final String? openSound;
+  final String? flipSound;
   @JsonKey(defaultValue: true)
   final bool showProgress;
   @JsonKey(defaultValue: {})
   final Map<String, String> macros;
   final String? extend;
 
-  BookDefinition(
-      this.name, this.landingText, this.bookTexture, this.model, this.showProgress, this.macros, this.extend);
+  BookDefinition(this.name, this.landingText, this.bookTexture, this.model, this.openSound, this.flipSound,
+      this.showProgress, this.macros, this.extend);
 
   Map<String, dynamic> toJson() => _$BookDefinitionToJson(this);
   factory BookDefinition.fromJson(Map<String, dynamic> json) => _$BookDefinitionFromJson(json);

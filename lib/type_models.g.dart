@@ -12,6 +12,8 @@ BookDefinition _$BookDefinitionFromJson(Map<String, dynamic> json) =>
       json['landing_text'] as String,
       json['book_texture'] as String?,
       json['model'] as String?,
+      json['open_sound'] as String?,
+      json['flip_sound'] as String?,
       json['show_progress'] as bool? ?? true,
       (json['macros'] as Map<String, dynamic>?)?.map(
             (k, e) => MapEntry(k, e as String),
@@ -26,6 +28,8 @@ Map<String, dynamic> _$BookDefinitionToJson(BookDefinition instance) =>
       'landing_text': instance.landingText,
       'book_texture': instance.bookTexture,
       'model': instance.model,
+      'open_sound': instance.openSound,
+      'flip_sound': instance.flipSound,
       'show_progress': instance.showProgress,
       'macros': instance.macros,
       'extend': instance.extend,

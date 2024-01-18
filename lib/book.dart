@@ -75,6 +75,8 @@ class Book {
         if (definition.extend != null) "extend": definition.extend,
         if (definition.model != null) "dynamic_book_model": definition.model,
         if (definition.showProgress) "display_completion": true,
+        if (definition.openSound != null) "open_sound": definition.openSound,
+        if (definition.flipSound != null) "flipping_sound": definition.flipSound,
       }),
     );
 
@@ -116,10 +118,10 @@ class Book {
         if (customPageMappings[type] case var mapping?) {
           final paramPattern = RegExp(r"\{\{[-_a-zA-Z\d]+}}");
           String map(Match match) {
-            final paramName = match.group(0)!.substring(2, match.group(0)!.length - 2);
+            final paramName = match[0]!.substring(2, match[0]!.length - 2);
             if (!data.containsKey(paramName)) throw ArgumentError.value(paramName, "page mapping parameter");
 
-            return data[paramName]!;
+            return converter.convert(data[paramName]!, bookNamespace);
           }
 
           if (mapping case String mapping) {
